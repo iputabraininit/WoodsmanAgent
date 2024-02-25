@@ -18,8 +18,8 @@ class SpecialAgentCommandExecutor:
 
     def execute(self, command: str):
         if command == 'quit':
-            print("Quitting agent")
-            sys.exit()
+            print("Epoch should now end")
+            output = 'quit'
         else:
             print("Delegating command to woodsman: '", command, "'", sep='')
             output = self.delegatedExecutor.execute(command)

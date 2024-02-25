@@ -2,18 +2,22 @@ import json
 import os
 
 from openai import OpenAI
+from colorama import Fore
+from colorama import Style
 
 GPT_VERSION = "gpt-4-0125-preview"
 
 class GptApiInputCommandSource:
 
-    messageList = [{"role": "system", "content": "You are a problem solving agent in a simulation of wood. Please only call one function at a time."}]
+    messageList = [{"role": "system", "content": "You are a problem solving agent in a simulation of a woodland clearning. "
+                                                 "Each tool call is being executed in series by the environment, and the results supplied back. "
+                                                 "Therefore you must only ever call one function at a time, no parallel function calling."}]
     tools = [
         {
             "type" : "function",
             "function" : {
                 "name" : "moveto",
-                "description" : "move to a particular location so it can be picked up or interacted with",
+                "description" : "move to a particular location so it can be picked up or interacted with, you will be told when you have arrived.",
                 "parameters" : {
                     "type" : "object",
                     "properties" : {
@@ -123,9 +127,13 @@ class GptApiInputCommandSource:
         print(chat_completion.choices[0].message)
 
         generated_message = chat_completion.choices[0].message
+        # XXX - if this has multiple tools, then this fails as we only deal with the 0th one
         self.messageList.append(generated_message)
 
         if generated_message.tool_calls is not None:
+            if len(generated_message.tool_calls) > 1:
+                print(f"{Fore.RED} WARNING: more than one tool call detected, slicing {Style.RESET_ALL}")
+                generated_message.tool_calls = generated_message.tool_calls[:1]
 
             function = generated_message.tool_calls[0].function
             function_name = function.name
@@ -133,13 +141,15 @@ class GptApiInputCommandSource:
 
             command_string = function_name
             if function.arguments:
-                argumentJson = json.loads(function.arguments)
-                for key, value in argumentJson.items():
+                argument_json = json.loads(function.arguments)
+                for key, value in argument_json.items():
                     command_string += " "
                     command_string += value
 
             return command_string
         else:
             print("Response from GPT API (text message) ", generated_message.content)
-            return (generated_message.content, None)
+            return generated_message.content
 
+    def reset(self):
+        self.messageList.clear()
